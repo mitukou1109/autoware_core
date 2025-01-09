@@ -18,6 +18,8 @@
 #include <autoware_planning_test_manager/autoware_planning_test_manager.hpp>
 #include <autoware_test_utils/autoware_test_utils.hpp>
 
+#include <tier4_planning_msgs/msg/path_with_lane_id.hpp>
+
 #include <gtest/gtest.h>
 
 #include <vector>
@@ -29,14 +31,12 @@ TEST(PlanningModuleInterfaceTest, NodeTestWithExceptionTrajectory)
   auto test_manager =
     std::make_shared<autoware::planning_test_manager::PlanningInterfaceTestManager>();
 
-  auto node_options = rclcpp::NodeOptions{};
-
   const auto autoware_test_utils_dir =
     ament_index_cpp::get_package_share_directory("autoware_test_utils");
   const auto path_generator_dir =
     ament_index_cpp::get_package_share_directory("autoware_path_generator");
 
-  node_options.arguments(
+  const auto node_options = rclcpp::NodeOptions{}.arguments(
     {"--ros-args", "--params-file",
      autoware_test_utils_dir + "/config/test_vehicle_info.param.yaml", "--params-file",
      autoware_test_utils_dir + "/config/test_nearest_search.param.yaml", "--params-file",
@@ -45,22 +45,26 @@ TEST(PlanningModuleInterfaceTest, NodeTestWithExceptionTrajectory)
   auto test_target_node = std::make_shared<autoware::path_generator::PathGenerator>(node_options);
 
   // publish necessary topics from test_manager
-  test_manager->publishMap(test_target_node, "path_generator/input/vector_map");
-  test_manager->publishOdometry(test_target_node, "path_generator/input/odometry");
+  test_manager->publishInput(
+    test_target_node, "path_generator/input/vector_map", autoware::test_utils::makeMapBinMsg());
+  test_manager->publishInput(
+    test_target_node, "path_generator/input/odometry", autoware::test_utils::makeOdometry());
 
-  // set subscriber with topic name: path_generator → test_node_
-  test_manager->setPathWithLaneIdSubscriber("path_generator/output/path");
+  // create subscriber in test_manager
+  test_manager->subscribeOutput<tier4_planning_msgs::msg::PathWithLaneId>(
+    "path_generator/output/path");
 
-  // set path_optimizer's input topic name(this topic is changed to test node)
-  test_manager->setRouteInputTopicName("path_generator/input/route");
+  const std::string route_topic_name = "path_generator/input/route";
 
   // test with normal trajectory
-  ASSERT_NO_THROW_WITH_ERROR_MSG(test_manager->testWithBehaviorNominalRoute(test_target_node));
+  ASSERT_NO_THROW_WITH_ERROR_MSG(
+    test_manager->testWithBehaviorNormalRoute(test_target_node, route_topic_name));
 
   EXPECT_GE(test_manager->getReceivedTopicNum(), 1);
 
   // test with trajectory with empty/one point/overlapping point
-  ASSERT_NO_THROW_WITH_ERROR_MSG(test_manager->testWithAbnormalRoute(test_target_node));
+  ASSERT_NO_THROW_WITH_ERROR_MSG(
+    test_manager->testWithAbnormalRoute(test_target_node, route_topic_name));
 
   rclcpp::shutdown();
 }
