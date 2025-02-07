@@ -101,6 +101,12 @@ std::vector<std::pair<lanelet::ConstPoints3d, std::pair<double, double>>> get_wa
   const lanelet::LaneletSequence & lanelet_sequence, const lanelet::LaneletMap & lanelet_map,
   const double group_separation_threshold, const double interval_margin_ratio);
 
+std::optional<double> get_first_self_intersection_arc_length(
+  const lanelet::LaneletSequence & lanelet_sequence, const double s_start, const double s_end);
+
+std::optional<double> get_first_self_intersection_arc_length(
+  const lanelet::BasicLineString2d & line_string, const double s_start, const double s_end);
+
 /**
  * @brief get bound of path cropped within specified range
  * @param lanelet_bound original bound of lanelet
