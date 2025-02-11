@@ -165,6 +165,7 @@ std::optional<lanelet::ConstLanelet> get_next_lanelet_within_route(
   }
   return *next_lanelet_itr;
 }
+
 std::optional<double> get_first_self_intersection_arc_length(
   const lanelet::LaneletSequence & lanelet_sequence, const double s_start, const double s_end)
 {
@@ -173,13 +174,10 @@ std::optional<double> get_first_self_intersection_arc_length(
   const auto s_right = get_first_self_intersection_arc_length(
     lanelet_sequence.rightBound2d().basicLineString(), s_start, s_end);
 
-  if (s_left) {
-    if (s_right) {
-      return std::min(*s_left, *s_right);
-    }
-    return s_left;
+  if (s_left && s_right) {
+    return std::min(*s_left, *s_right);
   }
-  return s_right;
+  return s_left ? s_left : s_right;
 }
 
 std::optional<double> get_first_self_intersection_arc_length(
