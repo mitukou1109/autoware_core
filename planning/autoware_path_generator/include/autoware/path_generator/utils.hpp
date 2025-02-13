@@ -124,16 +124,16 @@ std::vector<geometry_msgs::msg::Point> get_path_bound(
 /**
  * @brief get earliest turn signal based on turn direction specified for lanelets
  * @param path target path
- * @param planner_data planner data
+ * @param lanelet_map lanelet map to search for lanelet with turn direction
  * @param current_pose current pose of ego vehicle
  * @param current_vel current longitudinal velocity of ego vehicle
- * @param search_distance base distance to search for lanelet with turn direction
+ * @param search_distance base search distance
  * @param search_time time to extend search distance
  * @param base_link_to_front distance from base link to front of ego vehicle
  * @return turn signal
  */
 TurnIndicatorsCommand get_turn_signal(
-  const PathWithLaneId & path, const PlannerData & planner_data,
+  const PathWithLaneId & path, const lanelet::LaneletMap & lanelet_map,
   const geometry_msgs::msg::Pose & current_pose, const double current_vel,
   const double search_distance, const double search_time, const double base_link_to_front);
 }  // namespace utils

@@ -251,7 +251,7 @@ std::vector<geometry_msgs::msg::Point> get_path_bound(
 }
 
 TurnIndicatorsCommand get_turn_signal(
-  const PathWithLaneId & path, const PlannerData & planner_data,
+  const PathWithLaneId & path, const lanelet::LaneletMap & lanelet_map,
   const geometry_msgs::msg::Pose & current_pose, const double current_vel,
   const double search_distance, const double search_time, const double base_link_to_front)
 {
@@ -271,17 +271,7 @@ TurnIndicatorsCommand get_turn_signal(
     }
     searched_lanelet_ids.push_back(lane_id);
 
-    const auto lanelet = planner_data.lanelet_map_ptr->laneletLayer.get(lane_id);
-    if (lanelet::geometry::inside(lanelet, current_point)) {
-      arc_length_from_vehicle_front =
-        lanelet::utils::getLaneletLength2d(lanelet) -
-        lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), current_point).length -
-        base_link_to_front;
-    }
-    if (!arc_length_from_vehicle_front) {
-      continue;
-    }
-
+    const auto lanelet = lanelet_map.laneletLayer.get(lane_id);
     if (
       arc_length_from_vehicle_front <=
         lanelet.attributeOr("turn_signal_distance", base_search_distance) &&
@@ -289,7 +279,15 @@ TurnIndicatorsCommand get_turn_signal(
       turn_signal.command = turn_signal_command_map.at(lanelet.attribute("turn_direction").value());
       break;
     }
-    *arc_length_from_vehicle_front += lanelet::utils::getLaneletLength2d(lanelet);
+
+    if (arc_length_from_vehicle_front) {
+      *arc_length_from_vehicle_front += lanelet::utils::getLaneletLength2d(lanelet);
+    } else if (lanelet::geometry::inside(lanelet, current_point)) {
+      arc_length_from_vehicle_front =
+        lanelet::utils::getLaneletLength2d(lanelet) -
+        lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), current_point).length -
+        base_link_to_front;
+    }
   }
 
   return turn_signal;
