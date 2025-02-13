@@ -249,5 +249,50 @@ std::vector<geometry_msgs::msg::Point> get_path_bound(
 
   return path_bound;
 }
+
+TurnIndicatorsCommand get_turn_signal(
+  const PathWithLaneId & path, const PlannerData & planner_data,
+  const geometry_msgs::msg::Pose & current_pose, const double current_vel,
+  const double search_distance, const double search_time, const double base_link_to_front)
+{
+  TurnIndicatorsCommand turn_signal;
+  turn_signal.command = TurnIndicatorsCommand::NO_COMMAND;
+
+  const lanelet::BasicPoint2d current_point{current_pose.position.x, current_pose.position.y};
+  const auto base_search_distance = search_distance + current_vel * search_time;
+
+  std::vector<lanelet::Id> searched_lanelet_ids = {};
+  std::optional<double> arc_length_from_vehicle_front = std::nullopt;
+
+  for (const auto & point : path.points) {
+    const auto & lane_id = point.lane_ids.front();
+    if (exists(searched_lanelet_ids, lane_id)) {
+      continue;
+    }
+    searched_lanelet_ids.push_back(lane_id);
+
+    const auto lanelet = planner_data.lanelet_map_ptr->laneletLayer.get(lane_id);
+    if (lanelet::geometry::inside(lanelet, current_point)) {
+      arc_length_from_vehicle_front =
+        lanelet::utils::getLaneletLength2d(lanelet) -
+        lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), current_point).length -
+        base_link_to_front;
+    }
+    if (!arc_length_from_vehicle_front) {
+      continue;
+    }
+
+    if (
+      arc_length_from_vehicle_front <=
+        lanelet.attributeOr("turn_signal_distance", base_search_distance) &&
+      lanelet.hasAttribute("turn_direction")) {
+      turn_signal.command = turn_signal_command_map.at(lanelet.attribute("turn_direction").value());
+      break;
+    }
+    *arc_length_from_vehicle_front += lanelet::utils::getLaneletLength2d(lanelet);
+  }
+
+  return turn_signal;
+}
 }  // namespace utils
 }  // namespace autoware::path_generator
