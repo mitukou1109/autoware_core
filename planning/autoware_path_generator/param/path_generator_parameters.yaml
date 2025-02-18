@@ -16,8 +16,15 @@ path_generator:
     interval_margin_ratio:
       type: double
 
-  turn_signal_search_time:
-    type: double
+  turn_signal:
+    search_time:
+      type: double
 
-  turn_signal_search_distance:
-    type: double
+    search_distance:
+      type: double
+
+    resampling_interval:
+      type: double
+
+    angle_threshold_deg:
+      type: double

@@ -78,9 +78,10 @@ void PathGenerator::run()
   }
 
   auto turn_signal = utils::get_turn_signal(
-    *path, *planner_data_.lanelet_map_ptr, input_data.odometry_ptr->pose.pose,
-    input_data.odometry_ptr->twist.twist.linear.x, param.turn_signal_search_distance,
-    param.turn_signal_search_time, vehicle_info_.max_longitudinal_offset_m);
+    *path, planner_data_, input_data.odometry_ptr->pose.pose,
+    input_data.odometry_ptr->twist.twist.linear.x, param.turn_signal.search_distance,
+    param.turn_signal.search_time, param.turn_signal.resampling_interval,
+    param.turn_signal.angle_threshold_deg, vehicle_info_.max_longitudinal_offset_m);
   turn_signal.stamp = now();
   turn_signal_publisher_->publish(turn_signal);
 
