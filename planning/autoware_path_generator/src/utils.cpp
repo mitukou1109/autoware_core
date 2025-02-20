@@ -288,24 +288,24 @@ TurnIndicatorsCommand get_turn_signal(
       }
 
       if (lanelet.hasAttribute("turn_direction")) {
-        const auto is_turn_signal_required = [&]() {
-          if (arc_length_from_vehicle_front_to_lanelet_start) {  // ego is in front of lanelet
-            return arc_length_from_vehicle_front_to_lanelet_start <=
-                   lanelet.attributeOr("turn_signal_distance", base_search_distance);
+        turn_signal.command =
+          turn_signal_command_map.at(lanelet.attribute("turn_direction").value());
+
+        if (arc_length_from_vehicle_front_to_lanelet_start) {  // ego is in front of lanelet
+          if (
+            *arc_length_from_vehicle_front_to_lanelet_start >
+            lanelet.attributeOr("turn_signal_distance", base_search_distance)) {
+            turn_signal.command = TurnIndicatorsCommand::NO_COMMAND;
           }
+          return turn_signal;
+        }
 
-          // ego is already inside lanelet
-          const auto required_end_point =
-            get_turn_signal_required_end_point(lanelet, resampling_interval, angle_threshold_deg);
-          return lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), current_point)
-                   .length <=
-                 lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), required_end_point)
-                   .length;
-        }();
-
-        if (is_turn_signal_required) {
-          turn_signal.command =
-            turn_signal_command_map.at(lanelet.attribute("turn_direction").value());
+        // ego is inside lanelet
+        const auto required_end_point =
+          get_turn_signal_required_end_point(lanelet, resampling_interval, angle_threshold_deg);
+        if (
+          lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), current_point).length <=
+          lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), required_end_point).length) {
           return turn_signal;
         }
       }
