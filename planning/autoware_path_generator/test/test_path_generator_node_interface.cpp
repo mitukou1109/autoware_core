@@ -51,7 +51,7 @@ TEST(PlanningModuleInterfaceTest, NodeTestWithExceptionTrajectory)
     test_target_node, "path_generator/input/odometry", autoware::test_utils::makeOdometry());
 
   // create subscriber in test_manager
-  test_manager->subscribeOutput<tier4_planning_msgs::msg::PathWithLaneId>(
+  test_manager->subscribeOutput<autoware_internal_planning_msgs::msg::PathWithLaneId>(
     "path_generator/output/path");
 
   const std::string route_topic_name = "path_generator/input/route";
