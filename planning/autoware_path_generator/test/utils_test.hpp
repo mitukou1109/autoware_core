@@ -23,13 +23,13 @@
 
 namespace autoware::path_generator
 {
-class PathGeneratorUtilsTest : public ::testing::Test
+class UtilsTest : public ::testing::Test
 {
 protected:
   void SetUp() override
   {
-    const auto lanelet_map_path =
-      autoware::test_utils::get_absolute_path_to_lanelet_map("autoware_test_utils", "2km_test.osm");
+    const auto lanelet_map_path = autoware::test_utils::get_absolute_path_to_lanelet_map(
+      "autoware_test_utils", "lanelet2_map.osm");
     const auto map_bin_msg = autoware::test_utils::make_map_bin_msg(lanelet_map_path);
 
     planner_data_.lanelet_map_ptr = std::make_shared<lanelet::LaneletMap>();
@@ -38,13 +38,24 @@ protected:
       &planner_data_.routing_graph_ptr);
 
     const auto route_path = autoware::test_utils::get_absolute_path_to_route(
-      "autoware_path_generator", "straight_test_route.yaml");
+      "autoware_path_generator", "route_data.yaml");
     const auto route =
       autoware::test_utils::parse<std::optional<autoware_planning_msgs::msg::LaneletRoute>>(
         route_path);
     if (!route) {
       throw std::runtime_error(
         "Failed to parse YAML file: " + route_path + ". The file might be corrupted.");
+    }
+
+    const auto path_path =
+      autoware::test_utils::get_absolute_path_to_route("autoware_path_generator", "path_data.yaml");
+    try {
+      path_ = autoware::test_utils::parse<
+                std::optional<autoware_internal_planning_msgs::msg::PathWithLaneId>>(path_path)
+                .value();
+    } catch (const std::exception &) {
+      throw std::runtime_error(
+        "Failed to parse YAML file: " + path_path + ". The file might be corrupted.");
     }
 
     planner_data_.route_frame_id = route->header.frame_id;
@@ -97,5 +108,6 @@ protected:
   }
 
   PlannerData planner_data_;
+  autoware_internal_planning_msgs::msg::PathWithLaneId path_;
 };
 }  // namespace autoware::path_generator

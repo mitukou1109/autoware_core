@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "test_utils.hpp"
+#include "utils_test.hpp"
 
 #include <autoware/universe_utils/geometry/geometry.hpp>
 
@@ -20,19 +20,19 @@
 
 namespace autoware::path_generator
 {
-TEST_F(PathGeneratorUtilsTest, getPreviousLaneletWithinRoute)
+TEST_F(UtilsTest, getPreviousLaneletWithinRoute)
 {
   {  // Normal case
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(50);
 
     const auto prev_lanelet = utils::get_previous_lanelet_within_route(lanelet, planner_data_);
 
     ASSERT_TRUE(prev_lanelet.has_value());
-    ASSERT_EQ(prev_lanelet->id(), 4780);
+    ASSERT_EQ(prev_lanelet->id(), 125);
   }
 
   {  // The given lanelet is at the start of the route
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4424);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(10323);
 
     const auto prev_lanelet = utils::get_previous_lanelet_within_route(lanelet, planner_data_);
 
@@ -40,19 +40,19 @@ TEST_F(PathGeneratorUtilsTest, getPreviousLaneletWithinRoute)
   }
 }
 
-TEST_F(PathGeneratorUtilsTest, getNextLaneletWithinRoute)
+TEST_F(UtilsTest, getNextLaneletWithinRoute)
 {
   {  // Normal case
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(50);
 
     const auto next_lanelet = utils::get_next_lanelet_within_route(lanelet, planner_data_);
 
     ASSERT_TRUE(next_lanelet.has_value());
-    ASSERT_EQ(next_lanelet->id(), 4790);
+    ASSERT_EQ(next_lanelet->id(), 122);
   }
 
   {  // The given lanelet is at the end of the route
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4795);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(122);
 
     const auto next_lanelet = utils::get_next_lanelet_within_route(lanelet, planner_data_);
 
@@ -60,40 +60,39 @@ TEST_F(PathGeneratorUtilsTest, getNextLaneletWithinRoute)
   }
 }
 
-TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRouteUpTo)
+TEST_F(UtilsTest, getLaneletsWithinRouteUpTo)
 {
   if (!rclcpp::ok()) {
     rclcpp::init(0, nullptr);
   }
 
   {  // Normal case
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(50);
     const auto distance = 30.0;
 
     const auto prev_lanelets =
       utils::get_lanelets_within_route_up_to(lanelet, planner_data_, distance);
 
     ASSERT_TRUE(prev_lanelets.has_value());
-    ASSERT_EQ(prev_lanelets->size(), 2);
-    ASSERT_EQ(prev_lanelets->at(0).id(), 4424);
-    ASSERT_EQ(prev_lanelets->at(1).id(), 4780);
+    ASSERT_EQ(prev_lanelets->size(), 1);
+    ASSERT_EQ(prev_lanelets->at(0).id(), 125);
   }
 
   {  // The given distance exceeds the route section
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
-    const auto distance = 80.0;
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(50);
+    const auto distance = 100.0;
 
     const auto prev_lanelets =
       utils::get_lanelets_within_route_up_to(lanelet, planner_data_, distance);
 
     ASSERT_TRUE(prev_lanelets.has_value());
     ASSERT_EQ(prev_lanelets->size(), 2);
-    ASSERT_EQ(prev_lanelets->at(0).id(), 4424);
-    ASSERT_EQ(prev_lanelets->at(1).id(), 4780);
+    ASSERT_EQ(prev_lanelets->at(0).id(), 10323);
+    ASSERT_EQ(prev_lanelets->at(1).id(), 125);
   }
 
   {  // The given distance is negative
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(50);
     const auto distance = -30.0;
 
     const auto prev_lanelets =
@@ -104,7 +103,7 @@ TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRouteUpTo)
   }
 
   {  // The given lanelet is not within the route
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4775);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(10257);
     const auto distance = 30.0;
 
     const auto prev_lanelets =
@@ -114,14 +113,14 @@ TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRouteUpTo)
   }
 }
 
-TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRouteAfter)
+TEST_F(UtilsTest, getLaneletsWithinRouteAfter)
 {
   if (!rclcpp::ok()) {
     rclcpp::init(0, nullptr);
   }
 
   {  // Normal case
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(125);
     const auto distance = 30.0;
 
     const auto next_lanelets =
@@ -129,25 +128,25 @@ TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRouteAfter)
 
     ASSERT_TRUE(next_lanelets.has_value());
     ASSERT_EQ(next_lanelets->size(), 2);
-    ASSERT_EQ(next_lanelets->at(0).id(), 4790);
-    ASSERT_EQ(next_lanelets->at(1).id(), 4795);
+    ASSERT_EQ(next_lanelets->at(0).id(), 50);
+    ASSERT_EQ(next_lanelets->at(1).id(), 122);
   }
 
   {  // The given distance exceeds the route section
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
-    const auto distance = 80.0;
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(125);
+    const auto distance = 100.0;
 
     const auto next_lanelets =
       utils::get_lanelets_within_route_after(lanelet, planner_data_, distance);
 
     ASSERT_TRUE(next_lanelets.has_value());
     ASSERT_EQ(next_lanelets->size(), 2);
-    ASSERT_EQ(next_lanelets->at(0).id(), 4790);
-    ASSERT_EQ(next_lanelets->at(1).id(), 4795);
+    ASSERT_EQ(next_lanelets->at(0).id(), 50);
+    ASSERT_EQ(next_lanelets->at(1).id(), 122);
   }
 
   {  // The given distance is negative
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4785);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(125);
     const auto distance = -30.0;
 
     const auto next_lanelets =
@@ -158,7 +157,7 @@ TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRouteAfter)
   }
 
   {  // The given lanelet is not within the route
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4775);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(10257);
     const auto distance = 30.0;
 
     const auto next_lanelets =
@@ -168,14 +167,14 @@ TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRouteAfter)
   }
 }
 
-TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRoute)
+TEST_F(UtilsTest, getLaneletsWithinRoute)
 {
   if (!rclcpp::ok()) {
     rclcpp::init(0, nullptr);
   }
 
   {  // Normal case
-    const auto pose = autoware::test_utils::createPose(55.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    const auto pose = autoware::test_utils::createPose(3765.606, 73746.328, 0.0, 0.0, 0.0, 0.0);
     const auto lanelet = get_lanelet_closest_to_pose(pose);
     const auto backward_distance = 40.0;
     const auto forward_distance = 40.0;
@@ -184,15 +183,14 @@ TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRoute)
       lanelet, planner_data_, pose, backward_distance, forward_distance);
 
     ASSERT_TRUE(lanelets.has_value());
-    ASSERT_EQ(lanelets->size(), 4);
-    ASSERT_EQ(lanelets->at(0).id(), 4424);
-    ASSERT_EQ(lanelets->at(1).id(), 4780);
-    ASSERT_EQ(lanelets->at(2).id(), 4785);
-    ASSERT_EQ(lanelets->at(3).id(), 4790);
+    ASSERT_EQ(lanelets->size(), 3);
+    ASSERT_EQ(lanelets->at(0).id(), 125);
+    ASSERT_EQ(lanelets->at(1).id(), 50);
+    ASSERT_EQ(lanelets->at(2).id(), 122);
   }
 
   {  // The given backward distance is too small to search for the previous lanelets
-    const auto pose = autoware::test_utils::createPose(55.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    const auto pose = autoware::test_utils::createPose(3765.606, 73746.328, 0.0, 0.0, 0.0, 0.0);
     const auto lanelet = get_lanelet_closest_to_pose(pose);
     const auto backward_distance = 5.0;
     const auto forward_distance = 40.0;
@@ -202,29 +200,28 @@ TEST_F(PathGeneratorUtilsTest, getLaneletsWithinRoute)
 
     ASSERT_TRUE(lanelets.has_value());
     ASSERT_EQ(lanelets->size(), 2);
-    ASSERT_EQ(lanelets->at(0).id(), 4785);
-    ASSERT_EQ(lanelets->at(1).id(), 4790);
+    ASSERT_EQ(lanelets->at(0).id(), 50);
+    ASSERT_EQ(lanelets->at(1).id(), 122);
   }
 
   {  // The given forward distance is too small to search for the next lanelets
-    const auto pose = autoware::test_utils::createPose(55.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    const auto pose = autoware::test_utils::createPose(3765.606, 73746.328, 0.0, 0.0, 0.0, 0.0);
     const auto lanelet = get_lanelet_closest_to_pose(pose);
     const auto backward_distance = 40.0;
-    const auto forward_distance = 20.0;
+    const auto forward_distance = 5.0;
 
     const auto lanelets = utils::get_lanelets_within_route(
       lanelet, planner_data_, pose, backward_distance, forward_distance);
 
     ASSERT_TRUE(lanelets.has_value());
-    ASSERT_EQ(lanelets->size(), 3);
-    ASSERT_EQ(lanelets->at(0).id(), 4424);
-    ASSERT_EQ(lanelets->at(1).id(), 4780);
-    ASSERT_EQ(lanelets->at(2).id(), 4785);
+    ASSERT_EQ(lanelets->size(), 2);
+    ASSERT_EQ(lanelets->at(0).id(), 125);
+    ASSERT_EQ(lanelets->at(1).id(), 50);
   }
 
   {  // The given lanelet is not within the route
-    const auto pose = autoware::test_utils::createPose(-5.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(4775);
+    const auto pose = autoware::test_utils::createPose(3746.81, 73775.84, 0.0, 0.0, 0.0, 0.0);
+    const auto lanelet = planner_data_.lanelet_map_ptr->laneletLayer.get(10257);
     const auto backward_distance = 40.0;
     const auto forward_distance = 40.0;
 
