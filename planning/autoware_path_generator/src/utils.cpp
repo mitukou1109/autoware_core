@@ -493,12 +493,14 @@ TurnIndicatorsCommand get_turn_signal(
         }
 
         // ego is inside lanelet
-        const auto required_end_point_opt =
+        const auto required_end_point =
           get_turn_signal_required_end_point(lanelet, angle_threshold_deg);
-        if (!required_end_point_opt) continue;
+        if (!required_end_point) {
+          continue;
+        }
         if (
           calc_arc_length(lanelet, current_point) <=
-          calc_arc_length(lanelet, required_end_point_opt.value())) {
+          calc_arc_length(lanelet, *required_end_point)) {
           return turn_signal;
         }
       }
