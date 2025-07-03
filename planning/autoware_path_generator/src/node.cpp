@@ -255,15 +255,16 @@ std::optional<PathWithLaneId> PathGenerator::generate_path(
     return std::nullopt;
   }
 
-  // Compose the polished path
+  // Finalize the path
   PathWithLaneId finalized_path_with_lane_id{};
   finalized_path_with_lane_id.points = reference_path->restore();
 
   if (finalized_path_with_lane_id.points.empty()) {
-    RCLCPP_ERROR(get_logger(), "Finalized path points are empty after cropping");
+    RCLCPP_ERROR(get_logger(), "Finalized path points are empty");
     return std::nullopt;
   }
 
+  // Generate path bounds
   const auto path_bounds = utils::get_path_bounds(
     finalized_path_with_lane_id.points, planner_data_.preferred_lanelets,
     planner_data_.routing_graph_ptr, vehicle_info_.max_longitudinal_offset_m,
@@ -273,6 +274,7 @@ std::optional<PathWithLaneId> PathGenerator::generate_path(
     return std::nullopt;
   }
 
+  // Set additional data to the path
   finalized_path_with_lane_id.header.frame_id = planner_data_.route_frame_id;
   finalized_path_with_lane_id.header.stamp = now();
   finalized_path_with_lane_id.left_bound = path_bounds->left;
@@ -285,6 +287,7 @@ bool PathGenerator::update_current_lanelet(
   const geometry_msgs::msg::Pose & current_pose, const Params & params)
 {
   if (!current_lanelet_) {
+    // Initialize current lanelet
     lanelet::ConstLanelet current_lanelet;
     if (lanelet::utils::query::getClosestLanelet(
           planner_data_.route_lanelets, current_pose, &current_lanelet)) {
@@ -294,6 +297,7 @@ bool PathGenerator::update_current_lanelet(
     return false;
   }
 
+  // Consider the last current lanelet and its neighbors as candidates
   lanelet::ConstLanelets candidates;
   if (
     const auto previous_lanelet =
@@ -307,12 +311,14 @@ bool PathGenerator::update_current_lanelet(
     candidates.push_back(*next_lanelet);
   }
 
+  // Search for the closest lanelet from the candidates
   if (lanelet::utils::query::getClosestLaneletWithConstrains(
         candidates, current_pose, &*current_lanelet_, params.ego_nearest_dist_threshold,
         params.ego_nearest_yaw_threshold)) {
     return true;
   }
 
+  // If no closest lanelet found, search from the entire route lanelets
   if (lanelet::utils::query::getClosestLanelet(
         planner_data_.route_lanelets, current_pose, &*current_lanelet_)) {
     return true;

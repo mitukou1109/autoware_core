@@ -78,6 +78,7 @@ std::optional<lanelet::ConstLanelet> get_previous_lanelet_within_route(
   const lanelet::ConstLanelet & lanelet, const PlannerData & planner_data)
 {
   if (exists(planner_data.start_lanelets, lanelet)) {
+    // If the lanelet is a start lanelet, we cannot go backward
     return std::nullopt;
   }
 
@@ -86,6 +87,7 @@ std::optional<lanelet::ConstLanelet> get_previous_lanelet_within_route(
     return std::nullopt;
   }
 
+  // Pick the first lanelet that is part of the route
   const auto prev_lanelet_itr = std::find_if(
     prev_lanelets.cbegin(), prev_lanelets.cend(),
     [&](const lanelet::ConstLanelet & l) { return exists(planner_data.route_lanelets, l); });
@@ -103,6 +105,7 @@ std::optional<lanelet::ConstLanelet> get_next_lanelet_within_route(
   }
 
   if (exists(planner_data.goal_lanelets, lanelet)) {
+    // If the lanelet is a goal lanelet, we cannot go forward
     return std::nullopt;
   }
 
@@ -111,6 +114,7 @@ std::optional<lanelet::ConstLanelet> get_next_lanelet_within_route(
     return std::nullopt;
   }
 
+  // Pick the first lanelet that is part of the route and not in a loop
   const auto next_lanelet_itr = std::find_if(
     next_lanelets.cbegin(), next_lanelets.cend(), [&](const lanelet::ConstLanelet & l) {
       return exists(planner_data.route_lanelets, l) &&
@@ -313,6 +317,7 @@ std::optional<double> get_arc_length_on_centerline(
 
   for (const auto & lanelet : lanelet_sequence) {
     if (lanelet.id() != lane_id || !lanelet::geometry::inside(lanelet, point)) {
+      // Point is not in the current lanelet
       s_centerline += lanelet::geometry::length(lanelet.centerline2d());
       continue;
     }
@@ -322,7 +327,7 @@ std::optional<double> get_arc_length_on_centerline(
     return s_centerline;
   }
 
-  // The path point is outside lanelet_sequence
+  // Point is outside lanelet sequence
   return std::nullopt;
 }
 
@@ -335,6 +340,7 @@ std::optional<PathRange<double>> get_arc_length_on_bounds(
 
   for (const auto & lanelet : lanelet_sequence) {
     if (lanelet.id() != lane_id || !lanelet::geometry::inside(lanelet, point)) {
+      // Point is not in the current lanelet
       s_left += lanelet::geometry::length(lanelet.leftBound2d());
       s_right += lanelet::geometry::length(lanelet.rightBound2d());
       continue;
@@ -466,18 +472,21 @@ TurnIndicatorsCommand get_turn_signal(
   for (const auto & point : path.points) {
     for (const auto & lane_id : point.lane_ids) {
       if (exists(searched_lanelet_ids, lane_id)) {
+        // Skip already searched lanelets
         continue;
       }
       searched_lanelet_ids.push_back(lane_id);
 
       const auto lanelet = planner_data.lanelet_map_ptr->laneletLayer.get(lane_id);
       if (!get_next_lanelet_within_route(lanelet, planner_data)) {
+        // If lanelet is at end of route, no need to publish turn signal
         continue;
       }
 
       if (
         !arc_length_from_vehicle_front_to_lanelet_start &&
         !lanelet::geometry::inside(lanelet, current_point)) {
+        // Skip until we find first lanelet that contains current point
         continue;
       }
 
@@ -485,16 +494,18 @@ TurnIndicatorsCommand get_turn_signal(
         turn_signal.command =
           turn_signal_command_map.at(lanelet.attribute("turn_direction").value());
 
-        if (arc_length_from_vehicle_front_to_lanelet_start) {  // ego is in front of lanelet
+        if (arc_length_from_vehicle_front_to_lanelet_start) {
+          // Ego is in front of lanelet with turn signal
           if (
             *arc_length_from_vehicle_front_to_lanelet_start >
             lanelet.attributeOr("turn_signal_distance", base_search_distance)) {
+            // Ego is still too far from lanelet to publish turn signal
             turn_signal.command = TurnIndicatorsCommand::NO_COMMAND;
           }
           return turn_signal;
         }
 
-        // ego is inside lanelet
+        // Ego is inside lanelet with turn signal
         const auto required_end_point =
           get_turn_signal_required_end_point(lanelet, angle_threshold_deg);
         if (!required_end_point) {
@@ -503,14 +514,17 @@ TurnIndicatorsCommand get_turn_signal(
         if (
           calc_arc_length(lanelet, current_point) <=
           calc_arc_length(lanelet, *required_end_point)) {
+          // Ego is in front of required end point, so we continue to publish current turn signal
           return turn_signal;
         }
       }
 
       const auto lanelet_length = lanelet::utils::getLaneletLength2d(lanelet);
       if (arc_length_from_vehicle_front_to_lanelet_start) {
+        // Accumulate lanelet length
         *arc_length_from_vehicle_front_to_lanelet_start += lanelet_length;
       } else {
+        // Initialize arc length from vehicle front to lanelet start
         arc_length_from_vehicle_front_to_lanelet_start =
           lanelet_length - calc_arc_length(lanelet, current_point) - base_link_to_front;
       }
@@ -524,6 +538,7 @@ TurnIndicatorsCommand get_turn_signal(
 std::optional<lanelet::ConstPoint2d> get_turn_signal_required_end_point(
   const lanelet::ConstLanelet & lanelet, const double angle_threshold_deg)
 {
+  // Convert lanelet centerline to set of geometry_msgs::msg::Pose for autoware_trajectory
   std::vector<geometry_msgs::msg::Pose> centerline_poses(lanelet.centerline().size());
   std::transform(
     lanelet.centerline().begin(), lanelet.centerline().end(), centerline_poses.begin(),
@@ -533,8 +548,8 @@ std::optional<lanelet::ConstPoint2d> get_turn_signal_required_end_point(
       return pose;
     });
 
-  // NOTE: Trajectory does not support less than 4 points, so resample if less than 4.
-  //       This implementation should be replaced in the future
+  // Trajectory cannot be built from less than 4 points, so we resample centerline if necessary.
+  // This implementation should be replaced once pretty_build() supports geometry_msgs::msg::Pose.
   if (centerline_poses.size() < 4) {
     const auto lanelet_length = autoware::motion_utils::calcArcLength(centerline_poses);
     const auto resampling_interval = lanelet_length / 4.0;
@@ -552,6 +567,7 @@ std::optional<lanelet::ConstPoint2d> get_turn_signal_required_end_point(
     if (centerline_poses.size() < 4) return std::nullopt;
   }
 
+  // Build trajectory from centerline poses
   auto centerline =
     autoware::experimental::trajectory::Trajectory<geometry_msgs::msg::Pose>::Builder{}.build(
       centerline_poses);
@@ -560,6 +576,7 @@ std::optional<lanelet::ConstPoint2d> get_turn_signal_required_end_point(
   }
   centerline->align_orientation_with_trajectory_direction();
 
+  // Find intervals where driving direction is close to terminal yaw by angle_threshold_deg
   const auto terminal_yaw = tf2::getYaw(centerline->compute(centerline->length()).orientation);
   const auto intervals = autoware::experimental::trajectory::find_intervals(
     *centerline, [terminal_yaw, angle_threshold_deg](const geometry_msgs::msg::Pose & point) {
@@ -571,6 +588,7 @@ std::optional<lanelet::ConstPoint2d> get_turn_signal_required_end_point(
     return std::nullopt;
   }
 
+  // Return first point where driving direction difference is below threshold as required end point
   return lanelet::utils::conversion::toLaneletPoint(
     centerline->compute(intervals.front().start).position);
 }
