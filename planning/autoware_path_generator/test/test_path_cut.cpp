@@ -157,10 +157,10 @@ TEST_F(UtilsTest, getLaneletSequenceCoveringPath)
       get_lanelets_from_ids({4417}), {start, end}, planner_data_.routing_graph_ptr);
 
     ASSERT_TRUE(result.has_value());
-    ASSERT_EQ(result->lanelet_sequence.size(), 1);
-    ASSERT_EQ(result->lanelet_sequence[0].id(), 4417);
-    ASSERT_NEAR(result->s_start, 1.0, epsilon);
-    ASSERT_NEAR(result->s_end, 24.0, epsilon);
+    ASSERT_EQ(result->element.size(), 1);
+    ASSERT_EQ(result->element[0].id(), 4417);
+    ASSERT_NEAR(result->interval.start, 1.0, epsilon);
+    ASSERT_NEAR(result->interval.end, 24.0, epsilon);
   }
 
   {  // normal case with missing lanelet sequence
@@ -175,11 +175,11 @@ TEST_F(UtilsTest, getLaneletSequenceCoveringPath)
       get_lanelets_from_ids({4429}), {start, end}, planner_data_.routing_graph_ptr);
 
     ASSERT_TRUE(result.has_value());
-    ASSERT_GE(result->lanelet_sequence.size(), 2);
-    ASSERT_EQ(result->lanelet_sequence[0].id(), 4429);
-    ASSERT_EQ(result->lanelet_sequence[1].id(), 4434);
-    ASSERT_NEAR(result->s_start, 1.0, epsilon);
-    ASSERT_NEAR(result->s_end, 49.0, epsilon);
+    ASSERT_GE(result->element.size(), 2);
+    ASSERT_EQ(result->element[0].id(), 4429);
+    ASSERT_EQ(result->element[1].id(), 4434);
+    ASSERT_NEAR(result->interval.start, 1.0, epsilon);
+    ASSERT_NEAR(result->interval.end, 49.0, epsilon);
   }
 
   {  // normal case with redundant lanelet sequence
@@ -194,10 +194,10 @@ TEST_F(UtilsTest, getLaneletSequenceCoveringPath)
       get_lanelets_from_ids({4417, 4429, 4434}), {start, end}, planner_data_.routing_graph_ptr);
 
     ASSERT_TRUE(result.has_value());
-    ASSERT_EQ(result->lanelet_sequence.size(), 1);
-    ASSERT_EQ(result->lanelet_sequence[0].id(), 4429);
-    ASSERT_NEAR(result->s_start, 0.5, epsilon);
-    ASSERT_NEAR(result->s_end, 24.5, epsilon);
+    ASSERT_EQ(result->element.size(), 1);
+    ASSERT_EQ(result->element[0].id(), 4429);
+    ASSERT_NEAR(result->interval.start, 0.5, epsilon);
+    ASSERT_NEAR(result->interval.end, 24.5, epsilon);
   }
 }
 

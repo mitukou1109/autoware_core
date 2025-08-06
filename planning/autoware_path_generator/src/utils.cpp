@@ -146,19 +146,18 @@ std::optional<PathRange<std::vector<geometry_msgs::msg::Point>>> get_path_bounds
   }
 
   // Extend lanelet sequence to include start and end points with offsets
-  lanelet_sequence_with_range = autoware::experimental::trajectory::supplement_lanelet_sequence(
-    routing_graph, lanelet_sequence_with_range->lanelet_sequence,
-    lanelet_sequence_with_range->s_start - backward_offset,
-    lanelet_sequence_with_range->s_end + forward_offset);
-
-  const auto & [extended_lanelets, s_start, s_end] = *lanelet_sequence_with_range;
+  const auto [extended_lanelets, interval] =
+    autoware::experimental::trajectory::extend_lanelet_sequence(
+      lanelet_sequence_with_range->element, routing_graph,
+      lanelet_sequence_with_range->interval.start - backward_offset,
+      lanelet_sequence_with_range->interval.end + forward_offset);
 
   // Get offset start and end points on centerline of extended lanelet sequence
   const lanelet::LaneletSequence extended_lanelet_sequence(extended_lanelets);
   const auto offset_start_point = lanelet::geometry::interpolatedPointAtDistance(
-    extended_lanelet_sequence.centerline2d(), s_start);
-  const auto offset_end_point =
-    lanelet::geometry::interpolatedPointAtDistance(extended_lanelet_sequence.centerline2d(), s_end);
+    extended_lanelet_sequence.centerline2d(), interval.start);
+  const auto offset_end_point = lanelet::geometry::interpolatedPointAtDistance(
+    extended_lanelet_sequence.centerline2d(), interval.end);
 
   // Get longitudinal positions of offset start on bounds
   const auto ss_bound_start = get_arc_length_on_bounds(
@@ -191,7 +190,7 @@ std::optional<PathRange<std::vector<geometry_msgs::msg::Point>>> get_path_bounds
   return PathRange<std::vector<geometry_msgs::msg::Point>>{left_bound, right_bound};
 }
 
-std::optional<autoware::experimental::trajectory::LaneletSequenceWithRange>
+std::optional<autoware::experimental::trajectory::LaneletSequenceWithInterval>
 get_lanelet_sequence_covering_path(
   const lanelet::LaneletSequence & lanelet_sequence,
   const std::vector<PathPointWithLaneId> & path_points,
@@ -285,7 +284,8 @@ get_lanelet_sequence_covering_path(
     return std::nullopt;
   }
 
-  return autoware::experimental::trajectory::LaneletSequenceWithRange{lanelets, *s_start, *s_end};
+  return autoware::experimental::trajectory::LaneletSequenceWithInterval{
+    lanelets, {*s_start, *s_end}};
 }
 
 std::vector<geometry_msgs::msg::Point> crop_line_string(

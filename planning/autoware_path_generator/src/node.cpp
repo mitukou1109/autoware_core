@@ -235,29 +235,31 @@ std::optional<PathWithLaneId> PathGenerator::generate_path(
     RCLCPP_ERROR(get_logger(), "Failed to update current lanelet");
     return std::nullopt;
   }
-
+  std::vector<PathPointWithLaneId> path_points;
   auto reference_path = autoware::experimental::trajectory::build_reference_path(
     planner_data_.preferred_lanelets, *current_lanelet_, current_pose,
     planner_data_.lanelet_map_ptr, planner_data_.routing_graph_ptr, planner_data_.traffic_rules_ptr,
-    params.path_length.forward, params.path_length.backward);
+    params.path_length.forward, params.path_length.backward,
+    params.waypoint.connection_gradient_from_centerline, &path_points);
 
   if (!reference_path) {
     return std::nullopt;
   }
 
-  reference_path = utils::connect_path_to_goal_inside_lanelets(
-    *reference_path, planner_data_.preferred_lanelets, planner_data_.goal_pose,
-    planner_data_.preferred_lanelets.back().id(), params.goal_connection.connection_section_length,
-    params.goal_connection.pre_goal_offset);
+  // reference_path = utils::connect_path_to_goal_inside_lanelets(
+  //   *reference_path, planner_data_.preferred_lanelets, planner_data_.goal_pose,
+  //   planner_data_.preferred_lanelets.back().id(),
+  //   params.goal_connection.connection_section_length, params.goal_connection.pre_goal_offset);
 
-  if (!reference_path) {
-    RCLCPP_ERROR(get_logger(), "Failed to connect trajectory to goal");
-    return std::nullopt;
-  }
+  // if (!reference_path) {
+  //   RCLCPP_ERROR(get_logger(), "Failed to connect trajectory to goal");
+  //   return std::nullopt;
+  // }
 
   // Finalize the path
   PathWithLaneId finalized_path_with_lane_id{};
-  finalized_path_with_lane_id.points = reference_path->restore();
+  // finalized_path_with_lane_id.points = reference_path->restore();
+  finalized_path_with_lane_id.points = std::move(path_points);
 
   if (finalized_path_with_lane_id.points.empty()) {
     RCLCPP_ERROR(get_logger(), "Finalized path points are empty");
