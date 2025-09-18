@@ -579,11 +579,17 @@ double get_arc_length_on_path(
       lanelet::utils::conversion::toLaneletPoint(it->point.pose.position).basicPoint2d());
   }
 
-  if (target_path_segment.empty() && target_lanelet_it) {
-    // Path does not contain any point on target lanelet, thus we connect last point on previous
+  if (target_path_segment.size() < 2) {
+    // Path does not contain enough points on target lanelet, thus we connect last point on previous
     // lanelet and first point on next lanelet instead.
     // This happens when target lanelet is entirely covered by interval of waypoint group defined in
     // adjacent lanelets.
+    if (!target_lanelet_it) {
+      RCLCPP_WARN(
+        rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
+        "Target lanelet position not given, returning 0.");
+      return 0.;
+    }
     if (
       target_lanelet_it == lanelet_sequence.begin() ||
       target_lanelet_it == std::prev(lanelet_sequence.end())) {
