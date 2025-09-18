@@ -274,9 +274,9 @@ PathRange<std::optional<double>> get_arc_length_on_centerline(
  * @param lanelet_sequence Lanelet sequence.
  * @param goal_pose Goal pose.
  * @param goal_lanelet Goal lanelet.
- * @param goal_arc_coords Arc coordinates of the goal on the centerline of the lanelet sequence.
+ * @param s_goal Longitudinal distance to the goal on the centerline of the lanelet sequence.
  * @param planner_data Planner data.
- * @param connection_gradient_from_centerline Gradient for connecting centerline and goal.
+ * @param connection_gradient_from_path Gradient for connecting path and goal.
  * @param pre_goal_offset Offset for pre-goal.
  * @return A path connected to the goal. (std::nullopt if no valid path found)
  */
@@ -284,9 +284,8 @@ std::optional<experimental::trajectory::Trajectory<PathPointWithLaneId>>
 connect_path_to_goal_inside_lanelet_sequence(
   const experimental::trajectory::Trajectory<PathPointWithLaneId> & path,
   const lanelet::LaneletSequence & lanelet_sequence, const geometry_msgs::msg::Pose & goal_pose,
-  const lanelet::ConstLanelet & goal_lanelet, const lanelet::ArcCoordinates & goal_arc_coords,
-  const PlannerData & planner_data, const double connection_gradient_from_centerline,
-  const double pre_goal_offset);
+  const lanelet::ConstLanelet & goal_lanelet, const double s_goal, const PlannerData & planner_data,
+  const double connection_gradient_from_path, const double pre_goal_offset);
 
 /**
  * @brief Connect the path to the goal.
@@ -294,18 +293,17 @@ connect_path_to_goal_inside_lanelet_sequence(
  * @param lanelet_sequence Lanelet sequence covering the path.
  * @param goal_pose Goal pose.
  * @param goal_lanelet Goal lanelet.
- * @param goal_arc_coords Arc coordinates of the goal on the centerline of the lanelet sequence.
+ * @param s_goal Longitudinal distance to the goal on the centerline of the lanelet sequence.
  * @param planner_data Planner data.
- * @param connection_gradient_from_centerline Gradient for connecting centerline and goal.
+ * @param connection_gradient_from_path Gradient for connecting path and goal.
  * @param pre_goal_offset Offset for pre-goal.
  * @return A path connected to the goal.
  */
 experimental::trajectory::Trajectory<PathPointWithLaneId> connect_path_to_goal(
   const experimental::trajectory::Trajectory<PathPointWithLaneId> & path,
   const lanelet::LaneletSequence & lanelet_sequence, const geometry_msgs::msg::Pose & goal_pose,
-  const lanelet::ConstLanelet & goal_lanelet, const lanelet::ArcCoordinates & goal_arc_coords,
-  const PlannerData & planner_data, const double connection_gradient_from_centerline,
-  const double pre_goal_offset);
+  const lanelet::ConstLanelet & goal_lanelet, const double s_goal, const PlannerData & planner_data,
+  const double connection_gradient_from_path, const double pre_goal_offset);
 
 /**
  * @brief Check if the pose is inside the lanelets.
