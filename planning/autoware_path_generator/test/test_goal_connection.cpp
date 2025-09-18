@@ -30,25 +30,23 @@ TEST_F(UtilsTest, connectPathToGoalInsideLaneletSequence)
   const auto path = *Trajectory::Builder{}.build(path_.points);
 
   auto goal_lanelet_for_path = planner_data_.preferred_lanelets.back();
-  lanelet::ArcCoordinates goal_arc_coords;
+  auto s_goal = 0.;
 
-  for (auto [it, s_goal_lanelet] = std::make_tuple(planner_data_.preferred_lanelets.begin(), 0.);
-       it != planner_data_.preferred_lanelets.end(); ++it) {
+  for (const auto & lanelet : planner_data_.preferred_lanelets) {
     if (std::any_of(
           planner_data_.goal_lanelets.begin(), planner_data_.goal_lanelets.end(),
-          [id = it->id()](const auto & goal_lanelet) { return id == goal_lanelet.id(); })) {
-      goal_lanelet_for_path = *it;
-      goal_arc_coords = lanelet::utils::getArcCoordinates({*it}, planner_data_.goal_pose);
-      goal_arc_coords.length += s_goal_lanelet;
+          [&](const auto & goal_lanelet) { return lanelet.id() == goal_lanelet.id(); })) {
+      goal_lanelet_for_path = lanelet;
+      s_goal += lanelet::utils::getArcCoordinates({lanelet}, planner_data_.goal_pose).length;
       break;
     }
-    s_goal_lanelet += lanelet::geometry::length2d(*it);
+    s_goal += lanelet::geometry::length2d(lanelet);
   }
 
   {  // normal case
     const auto result = utils::connect_path_to_goal_inside_lanelet_sequence(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      goal_arc_coords, planner_data_, 5.0, 1.0);
+      s_goal, planner_data_, 5.0, 1.0);
 
     ASSERT_TRUE(result.has_value());
 
@@ -63,8 +61,7 @@ TEST_F(UtilsTest, connectPathToGoalInsideLaneletSequence)
 
   {  // lanelets are empty
     const auto result = utils::connect_path_to_goal_inside_lanelet_sequence(
-      path, {}, planner_data_.goal_pose, goal_lanelet_for_path, goal_arc_coords, planner_data_, 5.0,
-      1.0);
+      path, {}, planner_data_.goal_pose, goal_lanelet_for_path, s_goal, planner_data_, 5.0, 1.0);
 
     ASSERT_FALSE(result.has_value());
   }
@@ -72,7 +69,7 @@ TEST_F(UtilsTest, connectPathToGoalInsideLaneletSequence)
   {  // connection_gradient_from_centerline is zero
     const auto result = utils::connect_path_to_goal_inside_lanelet_sequence(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      goal_arc_coords, planner_data_, 0.0, 1.0);
+      s_goal, planner_data_, 0.0, 1.0);
 
     ASSERT_FALSE(result.has_value());
   }
@@ -86,25 +83,23 @@ TEST_F(UtilsTest, connectPathToGoal)
   const auto path = *Trajectory::Builder{}.build(path_.points);
 
   auto goal_lanelet_for_path = planner_data_.preferred_lanelets.back();
-  lanelet::ArcCoordinates goal_arc_coords;
+  auto s_goal = 0.;
 
-  for (auto [it, s_goal_lanelet] = std::make_tuple(planner_data_.preferred_lanelets.begin(), 0.);
-       it != planner_data_.preferred_lanelets.end(); ++it) {
+  for (const auto & lanelet : planner_data_.preferred_lanelets) {
     if (std::any_of(
           planner_data_.goal_lanelets.begin(), planner_data_.goal_lanelets.end(),
-          [id = it->id()](const auto & goal_lanelet) { return id == goal_lanelet.id(); })) {
-      goal_lanelet_for_path = *it;
-      goal_arc_coords = lanelet::utils::getArcCoordinates({*it}, planner_data_.goal_pose);
-      goal_arc_coords.length += s_goal_lanelet;
+          [&](const auto & goal_lanelet) { return lanelet.id() == goal_lanelet.id(); })) {
+      goal_lanelet_for_path = lanelet;
+      s_goal += lanelet::utils::getArcCoordinates({lanelet}, planner_data_.goal_pose).length;
       break;
     }
-    s_goal_lanelet += lanelet::geometry::length2d(*it);
+    s_goal += lanelet::geometry::length2d(lanelet);
   }
 
   {  // normal case
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      goal_arc_coords, planner_data_, 5.0, 1.0);
+      s_goal, planner_data_, 5.0, 1.0);
 
     const auto new_goal = result.compute(result.length());
     ASSERT_NEAR(new_goal.point.pose.position.x, planner_data_.goal_pose.position.x, m_epsilon);
@@ -118,7 +113,7 @@ TEST_F(UtilsTest, connectPathToGoal)
   {  // goal lanelet is invalid
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose,
-      lanelet::ConstLanelet(lanelet::InvalId), goal_arc_coords, planner_data_, 5.0, 1.0);
+      lanelet::ConstLanelet(lanelet::InvalId), s_goal, planner_data_, 5.0, 1.0);
 
     ASSERT_NEAR(result.length(), path.length(), m_epsilon);
   }
@@ -126,7 +121,7 @@ TEST_F(UtilsTest, connectPathToGoal)
   {  // connection_gradient_from_centerline is small
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      goal_arc_coords, planner_data_, 0.1, 1.0);
+      s_goal, planner_data_, 0.1, 1.0);
 
     const auto new_goal = result.compute(result.length());
     ASSERT_NEAR(new_goal.point.pose.position.x, planner_data_.goal_pose.position.x, m_epsilon);
@@ -140,7 +135,7 @@ TEST_F(UtilsTest, connectPathToGoal)
   {  // connection section is longer than distance from start to goal
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      goal_arc_coords, planner_data_, 100.0, 1.0);
+      s_goal, planner_data_, 100.0, 1.0);
 
     ASSERT_EQ(result.compute(0.0), path_.points.front());
 

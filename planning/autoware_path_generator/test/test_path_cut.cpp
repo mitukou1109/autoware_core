@@ -205,7 +205,7 @@ TEST_F(UtilsTest, getFirstStartEdgeCenterlineIntersectionArcLength)
   }
 }
 
-TEST_F(UtilsTest, GetArcLengthOnPath)
+TEST_F(UtilsTest, GetArcCoordinatesOnPath)
 {
   constexpr auto epsilon = 1e-1;
 
@@ -217,56 +217,65 @@ TEST_F(UtilsTest, GetArcLengthOnPath)
      {{122}, {3752.1707, 73762.1772}}});
 
   {  // lanelet sequence is empty
-    const auto result = utils::get_arc_length_on_path({}, path, {});
+    const auto result = utils::get_arc_coordinates_on_path({}, path, {});
 
-    ASSERT_NEAR(result, 0.0, epsilon);
+    ASSERT_NEAR(result.distance, 0.0, epsilon);
+    ASSERT_NEAR(result.length, 0.0, epsilon);
   }
 
   {  // normal case
-    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, 10.0);
+    const auto result = utils::get_arc_coordinates_on_path(lanelet_sequence, path, 10.0);
 
-    ASSERT_NEAR(result, 10.0, epsilon);
+    ASSERT_NEAR(result.distance, 0.0, epsilon);
+    ASSERT_NEAR(result.length, 10.0, epsilon);
   }
 
   {  // input arc length is negative
-    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, -10.0);
+    const auto result = utils::get_arc_coordinates_on_path(lanelet_sequence, path, -10.0);
 
-    ASSERT_NEAR(result, 0.0, epsilon);
+    ASSERT_NEAR(result.distance, 0.0, epsilon);
+    ASSERT_NEAR(result.length, 0.0, epsilon);
   }
 
   {  // input arc length exceeds lanelet length
-    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, 100.0);
+    const auto result = utils::get_arc_coordinates_on_path(lanelet_sequence, path, 100.0);
 
-    ASSERT_NEAR(result, 100.0, epsilon);
+    ASSERT_NEAR(result.distance, 0.0, epsilon);
+    ASSERT_NEAR(result.length, 100.0, epsilon);
   }
 
   {  // normal case
-    const auto result = utils::get_arc_length_on_path(
+    const auto result = utils::get_arc_coordinates_on_path(
       lanelet_sequence, path, {3754.262564, 73761.403738}, 122, std::nullopt);
 
-    ASSERT_NEAR(result, 56.55, epsilon);
+    ASSERT_NEAR(result.distance, -1.50, epsilon);
+    ASSERT_NEAR(result.length, 56.55, epsilon);
   }
 
   {  // path does not contain enough points on target lanelet and target lanelet position is not
      // given
-    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, {}, 55, std::nullopt);
+    const auto result =
+      utils::get_arc_coordinates_on_path(lanelet_sequence, path, {}, 55, std::nullopt);
 
-    ASSERT_NEAR(result, 0.0, epsilon);
+    ASSERT_NEAR(result.distance, 0.0, epsilon);
+    ASSERT_NEAR(result.length, 0.0, epsilon);
   }
 
   {  // path does not contain enough points on target lanelet and target lanelet is at beginning or
     // end of lanelet sequence
     const auto result =
-      utils::get_arc_length_on_path(lanelet_sequence, path, {}, 55, lanelet_sequence.begin());
+      utils::get_arc_coordinates_on_path(lanelet_sequence, path, {}, 55, lanelet_sequence.begin());
 
-    ASSERT_NEAR(result, 0.0, epsilon);
+    ASSERT_NEAR(result.distance, 0.0, epsilon);
+    ASSERT_NEAR(result.length, 0.0, epsilon);
   }
 
   {  // path does not contain enough points on target lanelet and target segment can be created
-    const auto result = utils::get_arc_length_on_path(
+    const auto result = utils::get_arc_coordinates_on_path(
       lanelet_sequence, path, {3763.3862, 73743.8905}, 55, lanelet_sequence.begin() + 1);
 
-    ASSERT_NEAR(result, 36.73, epsilon);
+    ASSERT_NEAR(result.distance, -0.81, epsilon);
+    ASSERT_NEAR(result.length, 36.73, epsilon);
   }
 }
 

@@ -87,8 +87,8 @@ TEST(DenseCenterlineTest, generatePath)
     "waypoint.connection_gradient_from_centerline",
     params.waypoint.connection_gradient_from_centerline);
   path_generator.get_parameter(
-    "goal_connection.connection_gradient_from_centerline",
-    params.goal_connection.connection_gradient_from_centerline);
+    "goal_connection.connection_gradient_from_path",
+    params.goal_connection.connection_gradient_from_path);
   path_generator.get_parameter(
     "smooth_goal_connection.pre_goal_offset", params.goal_connection.pre_goal_offset);
 
