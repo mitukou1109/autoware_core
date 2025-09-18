@@ -816,8 +816,9 @@ std::optional<experimental::trajectory::Trajectory<PathPointWithLaneId>>
 connect_path_to_goal_inside_lanelet_sequence(
   const experimental::trajectory::Trajectory<PathPointWithLaneId> & path,
   const lanelet::LaneletSequence & lanelet_sequence, const geometry_msgs::msg::Pose & goal_pose,
-  const lanelet::ConstLanelet & goal_lanelet, const double s_goal, const PlannerData & planner_data,
-  const double connection_section_length, const double pre_goal_offset)
+  const lanelet::ConstLanelet & goal_lanelet, const lanelet::ArcCoordinates & goal_arc_coords,
+  const PlannerData & planner_data, const double connection_gradient_from_centerline,
+  const double pre_goal_offset)
 {
   if (lanelet_sequence.empty()) {
     RCLCPP_WARN(
@@ -827,10 +828,10 @@ connect_path_to_goal_inside_lanelet_sequence(
   }
 
   // TODO(mitukou1109): make delta configurable
-  constexpr auto connection_section_length_delta = 0.1;
-  for (auto m = connection_section_length; m > 0.0; m -= connection_section_length_delta) {
+  for (auto m = connection_gradient_from_centerline; m > 0.0; m -= 0.1) {
     auto path_to_goal = connect_path_to_goal(
-      path, lanelet_sequence, goal_pose, goal_lanelet, s_goal, planner_data, m, pre_goal_offset);
+      path, lanelet_sequence, goal_pose, goal_lanelet, goal_arc_coords, planner_data, m,
+      pre_goal_offset);
     if (!is_path_inside_lanelets(path_to_goal, lanelet_sequence.lanelets())) {
       continue;
     }
@@ -843,14 +844,32 @@ connect_path_to_goal_inside_lanelet_sequence(
 experimental::trajectory::Trajectory<PathPointWithLaneId> connect_path_to_goal(
   const experimental::trajectory::Trajectory<PathPointWithLaneId> & path,
   const lanelet::LaneletSequence & lanelet_sequence, const geometry_msgs::msg::Pose & goal_pose,
-  const lanelet::ConstLanelet & goal_lanelet, const double s_goal, const PlannerData & planner_data,
-  const double connection_section_length, const double pre_goal_offset)
+  const lanelet::ConstLanelet & goal_lanelet, const lanelet::ArcCoordinates & goal_arc_coords,
+  const PlannerData & planner_data, const double connection_gradient_from_centerline,
+  const double pre_goal_offset)
 {
   if (goal_lanelet.id() == lanelet::InvalId) {
     RCLCPP_WARN(
       rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
       "Input goal lanelet is invalid, returning input path as is");
     return path;
+  }
+
+  const auto connection_section_length = std::max(
+    pre_goal_offset, connection_gradient_from_centerline * std::abs(goal_arc_coords.distance));
+
+  std::vector<PathPointWithLaneId> path_points_to_goal;
+
+  if (goal_arc_coords.length <= connection_section_length + pre_goal_offset) {
+    // If start is inside connection section, we just connect start, pre-goal, and goal.
+    path_points_to_goal = {path.compute(0)};
+  } else {
+    const auto s_connection_section_start = get_arc_length_on_path(
+      lanelet_sequence, path.restore(),
+      goal_arc_coords.length - pre_goal_offset - connection_section_length);
+    const auto cropped_path =
+      autoware::experimental::trajectory::crop(path, 0, s_connection_section_start);
+    path_points_to_goal = cropped_path.restore(1);
   }
 
   const auto pre_goal_pose =
@@ -867,36 +886,18 @@ experimental::trajectory::Trajectory<PathPointWithLaneId> connect_path_to_goal(
     pre_goal_lanelet = *prev_lanelet;
   }
 
-  const auto s_pre_goal =
-    autoware::experimental::trajectory::closest_with_constraint(
-      path, pre_goal_pose,
-      [&](const PathPointWithLaneId & point) {
-        return exists(point.lane_ids, pre_goal_lanelet.id());
-      })
-      .value_or(autoware::experimental::trajectory::closest(path, pre_goal_pose));
+  const auto s_pre_goal = get_arc_length_on_path(
+    lanelet_sequence, path.restore(),
+    lanelet::utils::conversion::toLaneletPoint(pre_goal_pose.position).basicPoint2d(),
+    pre_goal_lanelet.id(), std::nullopt);
 
-  PathPointWithLaneId pre_goal;
-  pre_goal.lane_ids = {pre_goal_lanelet.id()};
-  pre_goal.point.pose = pre_goal_pose;
-  pre_goal.point.longitudinal_velocity_mps =
-    path.compute(s_pre_goal).point.longitudinal_velocity_mps;
-
-  std::vector<PathPointWithLaneId> path_points_to_goal;
-
-  if (s_goal <= connection_section_length) {
-    // If distance from start to goal is smaller than connection_section_length and start is
-    // farther from goal than pre-goal, we just connect start, pre-goal, and goal.
-    path_points_to_goal = {path.compute(0)};
-  } else {
-    const auto s_connection_section_start =
-      get_arc_length_on_path(lanelet_sequence, path, s_goal - connection_section_length);
-    const auto cropped_path =
-      autoware::experimental::trajectory::crop(path, 0, s_connection_section_start);
-    path_points_to_goal = cropped_path.restore(1);
-  }
-
-  if (s_goal > pre_goal_offset) {
-    // add pre-goal only if goal is farther than pre-goal
+  if (s_pre_goal > 0) {
+    // add pre-goal only if it is inside path
+    PathPointWithLaneId pre_goal;
+    pre_goal.lane_ids = {pre_goal_lanelet.id()};
+    pre_goal.point.pose = pre_goal_pose;
+    pre_goal.point.longitudinal_velocity_mps =
+      path.compute(s_pre_goal).point.longitudinal_velocity_mps;
     path_points_to_goal.push_back(pre_goal);
   }
 
