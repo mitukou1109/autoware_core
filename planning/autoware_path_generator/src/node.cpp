@@ -306,8 +306,7 @@ std::optional<PathWithLaneId> PathGenerator::generate_path(
   const auto s = s_on_current_lanelet + backward_lanelets_length;
   const auto s_start = std::max(0., s - params.path_length.backward);
 
-  std::optional<std::pair<lanelet::ConstLanelet, lanelet::ArcCoordinates>> goal = std::nullopt;
-
+  std::optional<lanelet::ConstLanelet> goal_lanelet_for_path = std::nullopt;
   const auto s_end = [&]() {
     auto s_end = s + params.path_length.forward;
 
@@ -323,32 +322,29 @@ std::optional<PathWithLaneId> PathGenerator::generate_path(
         std::min(s_end, std::max(0., *s_intersection - vehicle_info_.max_longitudinal_offset_m));
     }
 
-    for (auto [it, s_goal_lanelet] = std::make_tuple(lanelets.begin(), 0.); it != lanelets.end();
-         ++it) {
+    for (auto [it, s_goal] = std::make_tuple(lanelets.begin(), 0.); it != lanelets.end(); ++it) {
       if (std::any_of(
             planner_data_.goal_lanelets.begin(), planner_data_.goal_lanelets.end(),
             [id = it->id()](const auto & goal_lanelet) { return id == goal_lanelet.id(); })) {
-        auto goal_arc_coords = lanelet::utils::getArcCoordinates({*it}, planner_data_.goal_pose);
-        goal_arc_coords.length += s_goal_lanelet;
-        if (goal_arc_coords.length < s_end) {
-          s_end = goal_arc_coords.length;
-          goal = {*it, goal_arc_coords};
+        s_goal += lanelet::utils::getArcCoordinates({*it}, planner_data_.goal_pose).length;
+        if (s_goal < s_end) {
+          goal_lanelet_for_path = *it;
+          s_end = s_goal;
         }
         break;
       }
-      s_goal_lanelet += lanelet::geometry::length2d(*it);
+      s_goal += lanelet::geometry::length2d(*it);
     }
 
     return s_end;
   }();
 
-  return generate_path(lanelets, s_start, s_end, goal, params);
+  return generate_path(lanelets, s_start, s_end, goal_lanelet_for_path, params);
 }
 
 std::optional<PathWithLaneId> PathGenerator::generate_path(
   const lanelet::LaneletSequence & lanelet_sequence, const double s_start, const double s_end,
-  const std::optional<std::pair<lanelet::ConstLanelet, lanelet::ArcCoordinates>> & goal,
-  const Params & params) const
+  const std::optional<lanelet::ConstLanelet> & goal_lanelet_for_path, const Params & params) const
 {
   if (lanelet_sequence.empty()) {
     RCLCPP_ERROR(get_logger(), "Lanelet sequence is empty");
@@ -454,23 +450,24 @@ std::optional<PathWithLaneId> PathGenerator::generate_path(
   // Attach orientation to path
   path->align_orientation_with_trajectory_direction();
 
-  const auto s_path_start = utils::get_arc_length_on_path(
-    extended_lanelet_sequence, path_points_with_lane_id, extended_arc_length + s_start);
-  const auto s_path_end = utils::get_arc_length_on_path(
-    extended_lanelet_sequence, path_points_with_lane_id, extended_arc_length + s_end);
+  const auto s_path_start =
+    utils::get_arc_coordinates_on_path(
+      extended_lanelet_sequence, path_points_with_lane_id, extended_arc_length + s_start)
+      .length;
+  const auto s_path_end =
+    utils::get_arc_coordinates_on_path(
+      extended_lanelet_sequence, path_points_with_lane_id, extended_arc_length + s_end)
+      .length;
 
   if (path->length() - s_path_end > 0) {
     path->crop(0., s_path_end);
   }
 
-  if (goal) {
-    auto [goal_lanelet_for_path, goal_arc_coords] = *goal;
-    goal_arc_coords.length += extended_arc_length;
-
+  if (goal_lanelet_for_path) {
     path = utils::connect_path_to_goal_inside_lanelet_sequence(
-      *path, extended_lanelet_sequence, planner_data_.goal_pose, goal_lanelet_for_path,
-      goal_arc_coords, planner_data_, params.goal_connection.connection_gradient_from_centerline,
-      params.goal_connection.pre_goal_offset);
+      *path, extended_lanelet_sequence, planner_data_.goal_pose, *goal_lanelet_for_path,
+      extended_arc_length + s_end, planner_data_,
+      params.goal_connection.connection_gradient_from_path, params.goal_connection.pre_goal_offset);
 
     if (!path) {
       RCLCPP_ERROR(get_logger(), "Failed to connect path to goal");
