@@ -54,10 +54,10 @@
           "default": "15.0",
           "minimum": 0.0
         },
-        "goal_connection.connection_section_length": {
+        "goal_connection.connection_gradient_from_centerline": {
           "type": "number",
-          "description": "Length of goal connection section [m]",
-          "default": "7.5",
+          "description": "Gradient for connecting centerline and goal",
+          "default": "5.0",
           "minimum": 0.0
         },
         "goal_connection.pre_goal_offset": {
@@ -77,7 +77,7 @@
         "turn_signal.search_distance",
         "turn_signal.resampling_interval",
         "turn_signal.angle_threshold_deg",
-        "goal_connection.connection_section_length",
+        "goal_connection.connection_gradient_from_centerline",
         "goal_connection.pre_goal_offset"
       ],
       "additionalProperties": false
