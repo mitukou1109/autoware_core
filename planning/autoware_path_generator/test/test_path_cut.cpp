@@ -24,7 +24,8 @@ namespace
 {
 using Trajectory = experimental::trajectory::Trajectory<PathPointWithLaneId>;
 
-Trajectory create_path(const std::vector<std::pair<lanelet::Ids, lanelet::BasicPoint2d>> & points)
+std::vector<PathPointWithLaneId> create_path(
+  const std::vector<std::pair<lanelet::Ids, lanelet::BasicPoint2d>> & points)
 {
   std::vector<PathPointWithLaneId> path_points;
   path_points.reserve(points.size());
@@ -35,9 +36,7 @@ Trajectory create_path(const std::vector<std::pair<lanelet::Ids, lanelet::BasicP
     path_point.lane_ids = lane_ids;
     path_points.push_back(path_point);
   }
-  return *Trajectory::Builder{}
-            .set_xy_interpolator<autoware::experimental::trajectory::interpolator::Linear>()
-            .build(path_points);
+  return path_points;
 }
 }  // namespace
 
@@ -210,8 +209,12 @@ TEST_F(UtilsTest, GetArcLengthOnPath)
 {
   constexpr auto epsilon = 1e-1;
 
-  const auto path =
-    create_path({{{55, 122}, {3757.5609, 73751.8479}}, {{122}, {3752.1707, 73762.1772}}});
+  const lanelet::LaneletSequence lanelet_sequence = get_lanelets_from_ids({113, 55, 122});
+  const auto path = create_path(
+    {{{113}, {3780.3522, 73711.2861}},
+     {{113}, {3768.7833, 73733.5248}},
+     {{55, 122}, {3757.5609, 73751.8479}},
+     {{122}, {3752.1707, 73762.1772}}});
 
   {  // lanelet sequence is empty
     const auto result = utils::get_arc_length_on_path({}, path, {});
@@ -220,21 +223,50 @@ TEST_F(UtilsTest, GetArcLengthOnPath)
   }
 
   {  // normal case
-    const auto result = utils::get_arc_length_on_path(get_lanelets_from_ids({122}), path, 10.0);
+    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, 10.0);
 
     ASSERT_NEAR(result, 10.0, epsilon);
   }
 
   {  // input arc length is negative
-    const auto result = utils::get_arc_length_on_path(get_lanelets_from_ids({122}), path, -10.0);
+    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, -10.0);
 
     ASSERT_NEAR(result, 0.0, epsilon);
   }
 
   {  // input arc length exceeds lanelet length
-    const auto result = utils::get_arc_length_on_path(get_lanelets_from_ids({122}), path, 100.0);
+    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, 100.0);
 
     ASSERT_NEAR(result, 100.0, epsilon);
+  }
+
+  {  // normal case
+    const auto result = utils::get_arc_length_on_path(
+      lanelet_sequence, path, {3754.262564, 73761.403738}, 122, std::nullopt);
+
+    ASSERT_NEAR(result, 56.55, epsilon);
+  }
+
+  {  // path does not contain enough points on target lanelet and target lanelet position is not
+     // given
+    const auto result = utils::get_arc_length_on_path(lanelet_sequence, path, {}, 55, std::nullopt);
+
+    ASSERT_NEAR(result, 0.0, epsilon);
+  }
+
+  {  // path does not contain enough points on target lanelet and target lanelet is at beginning or
+    // end of lanelet sequence
+    const auto result =
+      utils::get_arc_length_on_path(lanelet_sequence, path, {}, 55, lanelet_sequence.begin());
+
+    ASSERT_NEAR(result, 0.0, epsilon);
+  }
+
+  {  // path does not contain enough points on target lanelet and target segment can be created
+    const auto result = utils::get_arc_length_on_path(
+      lanelet_sequence, path, {3763.3862, 73743.8905}, 55, lanelet_sequence.begin() + 1);
+
+    ASSERT_NEAR(result, 36.73, epsilon);
   }
 }
 

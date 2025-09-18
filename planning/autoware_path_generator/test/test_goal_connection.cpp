@@ -26,26 +26,29 @@ using Trajectory = experimental::trajectory::Trajectory<PathPointWithLaneId>;
 TEST_F(UtilsTest, connectPathToGoalInsideLaneletSequence)
 {
   constexpr auto m_epsilon = 1e-3;
-  constexpr auto rad_epsilon = 1e-2;
+  constexpr auto rad_epsilon = 1 / 180. * M_PI;
   const auto path = *Trajectory::Builder{}.build(path_.points);
 
   auto goal_lanelet_for_path = planner_data_.preferred_lanelets.back();
-  auto s_goal = 0.;
-  for (const auto & lanelet : planner_data_.preferred_lanelets) {
+  lanelet::ArcCoordinates goal_arc_coords;
+
+  for (auto [it, s_goal_lanelet] = std::make_tuple(planner_data_.preferred_lanelets.begin(), 0.);
+       it != planner_data_.preferred_lanelets.end(); ++it) {
     if (std::any_of(
           planner_data_.goal_lanelets.begin(), planner_data_.goal_lanelets.end(),
-          [&](const auto & goal_lanelet) { return lanelet.id() == goal_lanelet.id(); })) {
-      goal_lanelet_for_path = lanelet;
-      s_goal += lanelet::utils::getArcCoordinates({lanelet}, planner_data_.goal_pose).length;
+          [id = it->id()](const auto & goal_lanelet) { return id == goal_lanelet.id(); })) {
+      goal_lanelet_for_path = *it;
+      goal_arc_coords = lanelet::utils::getArcCoordinates({*it}, planner_data_.goal_pose);
+      goal_arc_coords.length += s_goal_lanelet;
       break;
     }
-    s_goal += lanelet::geometry::length2d(lanelet);
+    s_goal_lanelet += lanelet::geometry::length2d(*it);
   }
 
   {  // normal case
     const auto result = utils::connect_path_to_goal_inside_lanelet_sequence(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      s_goal, planner_data_, 7.5, 1.0);
+      goal_arc_coords, planner_data_, 5.0, 1.0);
 
     ASSERT_TRUE(result.has_value());
 
@@ -54,26 +57,22 @@ TEST_F(UtilsTest, connectPathToGoalInsideLaneletSequence)
     ASSERT_NEAR(new_goal.point.pose.position.y, planner_data_.goal_pose.position.y, m_epsilon);
     ASSERT_NEAR(new_goal.point.pose.position.z, planner_data_.goal_pose.position.z, m_epsilon);
     ASSERT_NEAR(
-      new_goal.point.pose.orientation.x, planner_data_.goal_pose.orientation.x, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.y, planner_data_.goal_pose.orientation.y, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.z, planner_data_.goal_pose.orientation.z, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.w, planner_data_.goal_pose.orientation.w, rad_epsilon);
+      std::acos(new_goal.point.pose.orientation.w),
+      std::acos(planner_data_.goal_pose.orientation.w), rad_epsilon);
   }
 
   {  // lanelets are empty
     const auto result = utils::connect_path_to_goal_inside_lanelet_sequence(
-      path, {}, planner_data_.goal_pose, goal_lanelet_for_path, s_goal, planner_data_, 7.5, 1.0);
+      path, {}, planner_data_.goal_pose, goal_lanelet_for_path, goal_arc_coords, planner_data_, 5.0,
+      1.0);
 
     ASSERT_FALSE(result.has_value());
   }
 
-  {  // connection_section_length is zero
+  {  // connection_gradient_from_centerline is zero
     const auto result = utils::connect_path_to_goal_inside_lanelet_sequence(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      s_goal, planner_data_, 0.0, 1.0);
+      goal_arc_coords, planner_data_, 0.0, 1.0);
 
     ASSERT_FALSE(result.has_value());
   }
@@ -87,68 +86,61 @@ TEST_F(UtilsTest, connectPathToGoal)
   const auto path = *Trajectory::Builder{}.build(path_.points);
 
   auto goal_lanelet_for_path = planner_data_.preferred_lanelets.back();
-  auto s_goal = 0.;
-  for (const auto & lanelet : planner_data_.preferred_lanelets) {
+  lanelet::ArcCoordinates goal_arc_coords;
+
+  for (auto [it, s_goal_lanelet] = std::make_tuple(planner_data_.preferred_lanelets.begin(), 0.);
+       it != planner_data_.preferred_lanelets.end(); ++it) {
     if (std::any_of(
           planner_data_.goal_lanelets.begin(), planner_data_.goal_lanelets.end(),
-          [&](const auto & goal_lanelet) { return lanelet.id() == goal_lanelet.id(); })) {
-      goal_lanelet_for_path = lanelet;
-      s_goal += lanelet::utils::getArcCoordinates({lanelet}, planner_data_.goal_pose).length;
+          [id = it->id()](const auto & goal_lanelet) { return id == goal_lanelet.id(); })) {
+      goal_lanelet_for_path = *it;
+      goal_arc_coords = lanelet::utils::getArcCoordinates({*it}, planner_data_.goal_pose);
+      goal_arc_coords.length += s_goal_lanelet;
       break;
     }
-    s_goal += lanelet::geometry::length2d(lanelet);
+    s_goal_lanelet += lanelet::geometry::length2d(*it);
   }
 
   {  // normal case
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      s_goal, planner_data_, 7.5, 1.0);
+      goal_arc_coords, planner_data_, 5.0, 1.0);
 
     const auto new_goal = result.compute(result.length());
     ASSERT_NEAR(new_goal.point.pose.position.x, planner_data_.goal_pose.position.x, m_epsilon);
     ASSERT_NEAR(new_goal.point.pose.position.y, planner_data_.goal_pose.position.y, m_epsilon);
     ASSERT_NEAR(new_goal.point.pose.position.z, planner_data_.goal_pose.position.z, m_epsilon);
     ASSERT_NEAR(
-      new_goal.point.pose.orientation.x, planner_data_.goal_pose.orientation.x, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.y, planner_data_.goal_pose.orientation.y, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.z, planner_data_.goal_pose.orientation.z, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.w, planner_data_.goal_pose.orientation.w, rad_epsilon);
+      std::acos(new_goal.point.pose.orientation.w),
+      std::acos(planner_data_.goal_pose.orientation.w), rad_epsilon);
   }
 
   {  // goal lanelet is invalid
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose,
-      lanelet::ConstLanelet(lanelet::InvalId), s_goal, planner_data_, 7.5, 1.0);
+      lanelet::ConstLanelet(lanelet::InvalId), goal_arc_coords, planner_data_, 5.0, 1.0);
 
     ASSERT_NEAR(result.length(), path.length(), m_epsilon);
   }
 
-  {  // connection_section_length is small
+  {  // connection_gradient_from_centerline is small
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      s_goal, planner_data_, 0.1, 1.0);
+      goal_arc_coords, planner_data_, 0.1, 1.0);
 
     const auto new_goal = result.compute(result.length());
     ASSERT_NEAR(new_goal.point.pose.position.x, planner_data_.goal_pose.position.x, m_epsilon);
     ASSERT_NEAR(new_goal.point.pose.position.y, planner_data_.goal_pose.position.y, m_epsilon);
     ASSERT_NEAR(new_goal.point.pose.position.z, planner_data_.goal_pose.position.z, m_epsilon);
     ASSERT_NEAR(
-      new_goal.point.pose.orientation.x, planner_data_.goal_pose.orientation.x, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.y, planner_data_.goal_pose.orientation.y, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.z, planner_data_.goal_pose.orientation.z, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.w, planner_data_.goal_pose.orientation.w, rad_epsilon);
+      std::acos(new_goal.point.pose.orientation.w),
+      std::acos(planner_data_.goal_pose.orientation.w), rad_epsilon);
   }
 
-  {  // connection_section_length is larger than distance from start to goal
+  {  // connection section is longer than distance from start to goal
     const auto result = utils::connect_path_to_goal(
       path, planner_data_.preferred_lanelets, planner_data_.goal_pose, goal_lanelet_for_path,
-      s_goal, planner_data_, 100.0, 1.0);
+      goal_arc_coords, planner_data_, 100.0, 1.0);
 
     ASSERT_EQ(result.compute(0.0), path_.points.front());
 
@@ -157,13 +149,8 @@ TEST_F(UtilsTest, connectPathToGoal)
     ASSERT_NEAR(new_goal.point.pose.position.y, planner_data_.goal_pose.position.y, m_epsilon);
     ASSERT_NEAR(new_goal.point.pose.position.z, planner_data_.goal_pose.position.z, m_epsilon);
     ASSERT_NEAR(
-      new_goal.point.pose.orientation.x, planner_data_.goal_pose.orientation.x, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.y, planner_data_.goal_pose.orientation.y, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.z, planner_data_.goal_pose.orientation.z, rad_epsilon);
-    ASSERT_NEAR(
-      new_goal.point.pose.orientation.w, planner_data_.goal_pose.orientation.w, rad_epsilon);
+      std::acos(new_goal.point.pose.orientation.w),
+      std::acos(planner_data_.goal_pose.orientation.w), rad_epsilon);
   }
 }
 
