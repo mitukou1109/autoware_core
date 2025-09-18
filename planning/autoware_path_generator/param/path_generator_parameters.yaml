@@ -43,7 +43,7 @@ path_generator:
         gt<>: [0]
 
   goal_connection:
-    connection_gradient_from_centerline:
+    connection_gradient_from_path:
       type: double
       validation:
         gt<>: [0]

@@ -54,9 +54,9 @@
           "default": "15.0",
           "minimum": 0.0
         },
-        "goal_connection.connection_gradient_from_centerline": {
+        "goal_connection.connection_gradient_from_path": {
           "type": "number",
-          "description": "Gradient for connecting centerline and goal",
+          "description": "Gradient for connecting path and goal",
           "default": "5.0",
           "minimum": 0.0
         },
