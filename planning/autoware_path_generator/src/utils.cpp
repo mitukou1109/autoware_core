@@ -511,7 +511,7 @@ std::optional<double> get_first_start_edge_intersection_arc_length(
   return s_start_edge;
 }
 
-double get_arc_length_on_path(
+lanelet::ArcCoordinates get_arc_coordinates_on_path(
   const lanelet::LaneletSequence & lanelet_sequence,
   const std::vector<PathPointWithLaneId> & path_points, const double s_centerline)
 {
@@ -522,14 +522,14 @@ double get_arc_length_on_path(
     RCLCPP_WARN(
       rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
       "Input lanelet sequence is empty, returning 0.");
-    return 0.;
+    return {};
   }
 
   if (s_centerline < 0.) {
     RCLCPP_WARN(
       rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
       "Input arc length is negative, returning 0.");
-    return 0.;
+    return {};
   }
 
   for (auto [it, s] = std::make_tuple(lanelet_sequence.begin(), 0.); it != lanelet_sequence.end();
@@ -550,15 +550,15 @@ double get_arc_length_on_path(
     RCLCPP_WARN(
       rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
       "No lanelet found for input arc length, returning input as is");
-    return s_centerline;
+    return {s_centerline, 0.};
   }
 
-  return get_arc_length_on_path(
+  return get_arc_coordinates_on_path(
     lanelet_sequence, path_points, *point_on_centerline, (*target_lanelet_it)->id(),
     target_lanelet_it);
 }
 
-double get_arc_length_on_path(
+lanelet::ArcCoordinates get_arc_coordinates_on_path(
   const lanelet::LaneletSequence & lanelet_sequence,
   const std::vector<PathPointWithLaneId> & path_points, const lanelet::BasicPoint2d & target_point,
   const lanelet::Id & target_lanelet_id,
@@ -588,7 +588,7 @@ double get_arc_length_on_path(
       RCLCPP_WARN(
         rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
         "Target lanelet position not given, returning 0.");
-      return 0.;
+      return {};
     }
     if (
       target_lanelet_it == lanelet_sequence.begin() ||
@@ -597,7 +597,7 @@ double get_arc_length_on_path(
         rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
         "Path does not any point on target lanelet and target lanelet is at beginning or end "
         "of lanelet sequence, returning 0.");
-      return 0.;
+      return {};
     }
 
     s_path = 0.;
@@ -623,7 +623,7 @@ double get_arc_length_on_path(
           rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
           "Path does not contain any point on target lanelet and no previous point found, "
           "returning 0.");
-        return 0.;
+        return {};
       }
       --lanelet_it;
     }
@@ -643,7 +643,7 @@ double get_arc_length_on_path(
           rclcpp::get_logger("path_generator").get_child("utils").get_child(__func__),
           "Path does not contain any point on target lanelet and no next point found, "
           "returning 0.");
-        return 0.;
+        return {};
       }
       ++lanelet_it;
     }
@@ -654,9 +654,10 @@ double get_arc_length_on_path(
         .basicPoint2d()};
   }
 
-  s_path += lanelet::geometry::toArcCoordinates(target_path_segment, target_point).length;
+  auto target_arc_coords = lanelet::geometry::toArcCoordinates(target_path_segment, target_point);
+  target_arc_coords.length += s_path;
 
-  return s_path;
+  return target_arc_coords;
 }
 
 PathRange<std::vector<geometry_msgs::msg::Point>> get_path_bounds(

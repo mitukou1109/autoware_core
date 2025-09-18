@@ -201,26 +201,26 @@ std::optional<double> get_first_start_edge_intersection_arc_length(
   const lanelet::BasicLineString2d & start_edge, const lanelet::BasicLineString2d & line_string);
 
 /**
- * @brief get position of given point on centerline projected to path in arc length
+ * @brief get arc coordinates along path of given point on centerline
  * @param lanelet_sequence lanelet sequence
  * @param path_points target path points
  * @param s_centerline longitudinal distance of point on centerline
- * @return longitudinal distance of projected point
+ * @return arc coordinates of projected point
  */
-double get_arc_length_on_path(
+lanelet::ArcCoordinates get_arc_coordinates_on_path(
   const lanelet::LaneletSequence & lanelet_sequence,
   const std::vector<PathPointWithLaneId> & path_points, const double s_centerline);
 
 /**
- * @brief get position of given point projected to path in arc length
+ * @brief get arc coordinates along path of given point on centerline
  * @param lanelet_sequence lanelet sequence
  * @param path_points target path points
  * @param target_point target point
  * @param target_lanelet_id ID of target lanelet (lanelet which target point is on)
  * @param target_lanelet_it Iterator to target lanelet (std::nullopt if not known)
- * @return longitudinal distance of projected point
+ * @return arc coordinates of projected point
  */
-double get_arc_length_on_path(
+lanelet::ArcCoordinates get_arc_coordinates_on_path(
   const lanelet::LaneletSequence & lanelet_sequence,
   const std::vector<PathPointWithLaneId> & path_points, const lanelet::BasicPoint2d & target_point,
   const lanelet::Id & target_lanelet_id,
