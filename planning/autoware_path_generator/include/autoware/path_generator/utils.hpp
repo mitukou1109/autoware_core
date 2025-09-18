@@ -203,14 +203,28 @@ std::optional<double> get_first_start_edge_intersection_arc_length(
 /**
  * @brief get position of given point on centerline projected to path in arc length
  * @param lanelet_sequence lanelet sequence
- * @param path target path
+ * @param path_points target path points
  * @param s_centerline longitudinal distance of point on centerline
  * @return longitudinal distance of projected point
  */
 double get_arc_length_on_path(
   const lanelet::LaneletSequence & lanelet_sequence,
-  const experimental::trajectory::Trajectory<PathPointWithLaneId> & path,
-  const double s_centerline);
+  const std::vector<PathPointWithLaneId> & path_points, const double s_centerline);
+
+/**
+ * @brief get position of given point projected to path in arc length
+ * @param lanelet_sequence lanelet sequence
+ * @param path_points target path points
+ * @param target_point target point
+ * @param target_lanelet_id ID of target lanelet (lanelet which target point is on)
+ * @param target_lanelet_it Iterator to target lanelet (std::nullopt if not known)
+ * @return longitudinal distance of projected point
+ */
+double get_arc_length_on_path(
+  const lanelet::LaneletSequence & lanelet_sequence,
+  const std::vector<PathPointWithLaneId> & path_points, const lanelet::BasicPoint2d & target_point,
+  const lanelet::Id & target_lanelet_id,
+  const std::optional<lanelet::LaneletSequence::iterator> & target_lanelet_it);
 
 /**
  * @brief get path bounds for PathWithLaneId cropped within specified range
