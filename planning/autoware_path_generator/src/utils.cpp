@@ -860,8 +860,10 @@ experimental::trajectory::Trajectory<PathPointWithLaneId> connect_path_to_goal(
   }
 
   const auto path_points = path.restore();
-  const auto goal_arc_coords_on_path =
-    get_arc_coordinates_on_path(lanelet_sequence, path_points, s_goal);
+  const auto goal_arc_coords_on_path = get_arc_coordinates_on_path(
+    lanelet_sequence, path_points,
+    lanelet::utils::conversion::toLaneletPoint(goal_pose.position).basicPoint2d(),
+    goal_lanelet.id(), std::nullopt);
 
   const auto connection_section_length = std::max(
     pre_goal_offset, connection_gradient_from_path * std::abs(goal_arc_coords_on_path.distance));
